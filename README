@@ -11,3 +11,8 @@ terminal known to the system's terminfo database.
 VTE doesn't have a homepage.  Report any issues at:
 
   http://bugzilla.gnome.org/enter_bug.cgi?product=vte
+
+====
+
+This tree contains Gasket integration, adding management of an SVG overlay
+fed by console programs running in the child PTY via Unix sockets.
