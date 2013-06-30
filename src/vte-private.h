@@ -27,6 +27,7 @@
 #include <sys/termios.h>
 #endif
 #include <sys/time.h>
+#include <uuid/uuid.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -393,6 +394,9 @@ struct _VteTerminalPrivate {
 
         /* Style stuff */
         GtkBorder inner_border;
+ 
+ 	/* Gasket stuff */
+        VteGasket *gasket;
 
 #if GTK_CHECK_VERSION (2, 91, 2)
         /* GtkScrollable impl */
@@ -452,6 +456,9 @@ void _vte_terminal_handle_sequence(VteTerminal *terminal,
 				   const char *match_s,
 				   GQuark match,
 				   GValueArray *params);
+
+gboolean _vte_terminal_create_gasket(VteTerminal *terminal, GError **error);
+gboolean _vte_terminal_invalidate_for_gasket(gpointer data);
 
 G_END_DECLS
 

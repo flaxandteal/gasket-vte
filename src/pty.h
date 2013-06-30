@@ -23,6 +23,8 @@
 
 #include <sys/types.h>
 
+#include "vtegasket.h"
+
 G_BEGIN_DECLS
 
 /* Start up the given binary (exact path, not interpreted at all) in a
@@ -32,7 +34,8 @@ G_BEGIN_DECLS
 int _vte_pty_open(pid_t *child, char **env_add,
 		  const char *command, char **argv, const char *directory,
 		  int columns, int rows,
-		  gboolean lastlog, gboolean utmp, gboolean wtmp);
+		  gboolean lastlog, gboolean utmp, gboolean wtmp,
+		  VteGasket *gasket);
 
 /* Set or read the size of a terminal.  Returns 0 on success, -1 on failure,
  * with errno set to defined return codes from ioctl(). */

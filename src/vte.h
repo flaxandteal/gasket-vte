@@ -26,6 +26,7 @@
 
 #define __VTE_VTE_H_INSIDE__ 1
 
+#include "vtegasket.h"
 #include "vtepty.h"
 #include "vtetypebuiltins.h"
 #include "vteversion.h"

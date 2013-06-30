@@ -24,6 +24,7 @@
 #define VTE_PTY_H
 
 #include <glib-object.h>
+#include "vtegasket.h"
 
 G_BEGIN_DECLS
 

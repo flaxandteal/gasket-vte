@@ -1044,6 +1044,17 @@ _vte_draw_set_source_color_alpha (struct _vte_draw *draw,
 			      alpha / 255.);
 }
 
+void
+_vte_draw_paint_gasket (struct _vte_draw *draw, VteGasket* gasket)
+{
+        g_return_if_fail (draw->started);
+
+        g_return_if_fail (VTE_IS_GASKET(gasket));
+
+        if (gasket != NULL)
+                vte_gasket_paint_overlay(gasket, draw->cr);
+}
+
 static void
 _vte_draw_text_internal (struct _vte_draw *draw,
 			 struct _vte_draw_text_request *requests, gsize n_requests,

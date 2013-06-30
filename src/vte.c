@@ -58,6 +58,7 @@
 #include "vtepty.h"
 #include "vtepty-private.h"
 #include "vteregex.h"
+#include "vtegasket.h"
 #include "vtetc.h"
 
 #ifdef HAVE_LOCALE_H
@@ -3836,6 +3837,58 @@ vte_terminal_fork_command(VteTerminal *terminal,
         return (pid_t) child_pid;
 }
 
+gboolean
+_vte_terminal_invalidate_for_gasket(gpointer data)
+{
+        VteTerminal *terminal = (VteTerminal*)data;
+
+        g_return_val_if_fail(VTE_IS_TERMINAL(terminal), FALSE);
+
+        _vte_invalidate_all(terminal);
+
+        return FALSE;
+}
+
+/**
+ * vte_terminal_create_gasket:
+ * @terminal: a #VteTerminal
+ * @error: (allow-none): return location for a #GError, or NULL
+ * 
+ * Create a new #VteGasket for this terminal.
+ */
+gboolean
+_vte_terminal_create_gasket(VteTerminal *terminal, GError **error)
+{
+        VteGasket *gasket = NULL;
+        VtePty *pty;
+
+        g_return_val_if_fail(VTE_IS_TERMINAL(terminal), FALSE);
+        g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+        gasket = vte_gasket_new(error);
+
+        if (gasket == NULL)
+                return FALSE;
+
+        /* Allow the gasket to poke us when it's posted some SVG */
+        vte_gasket_set_invalidation_function(gasket, _vte_terminal_invalidate_for_gasket, terminal);
+
+        pty = terminal->pvt->pty;
+        //FIXME: this requires updating the PTY env hash table
+        //if (pty != NULL)
+        //        vte_pty_set_gasket(pty, gasket);
+
+        terminal->pvt->gasket = gasket;
+
+        /* Set up the socket */
+        vte_gasket_make_socket(gasket);
+
+        /* Launch a listener thread for the gasket socket */
+        vte_gasket_launch_listen(gasket);
+
+        return TRUE;
+}
+
 /**
  * vte_terminal_fork_command_full:
  * @terminal: a #VteTerminal
@@ -3889,6 +3942,15 @@ vte_terminal_fork_command_full(VteTerminal *terminal,
         g_return_val_if_fail(child_setup_data == NULL || child_setup, FALSE);
         g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+        if (terminal->pvt->gasket == NULL)
+        {
+            GError *err = NULL;
+            if (!_vte_terminal_create_gasket(terminal, &err)) {
+                    g_warning(_("Error adding gasket: %s\n"), err->message);
+                    g_error_free(err);
+            }
+        }
+
         pty = vte_pty_new(pty_flags, error);
         if (pty == NULL)
                 return FALSE;
@@ -3902,6 +3964,7 @@ vte_terminal_fork_command_full(VteTerminal *terminal,
                              envv,
                              spawn_flags,
                              child_setup, child_setup_data,
+                             terminal->pvt->gasket,
                              &pid,
                              error)) {
                 g_object_unref(pty);
@@ -3962,6 +4025,7 @@ vte_terminal_forkpty(VteTerminal *terminal,
                 return FALSE;
 
         if (!__vte_pty_fork(pty,
+                            terminal->pvt->gasket,
                             &pid,
                             NULL)) {
                 g_object_unref(pty);
@@ -8984,6 +9048,10 @@ vte_terminal_finalize(GObject *object)
                 vte_pty_close(terminal->pvt->pty);
                 g_object_unref(terminal->pvt->pty);
 	}
+        if (terminal->pvt->gasket != NULL) {
+                vte_gasket_close(terminal->pvt->gasket);
+                g_object_unref(terminal->pvt->gasket);
+        }
 
 	/* Remove hash tables. */
 	if (terminal->pvt->dec_saved != NULL) {
@@ -10878,6 +10946,26 @@ vte_terminal_paint_area (VteTerminal *terminal, const GdkRectangle *area)
 }
 
 static void
+vte_terminal_paint_gasket(VteTerminal* terminal)
+{
+	VteScreen* screen = terminal->pvt->screen;
+	int delta = screen->scroll_delta;
+	int drow = screen->cursor_current.row;
+
+        if (terminal->pvt->gasket != NULL)
+        {
+            vte_gasket_set_target_extents(terminal->pvt->gasket,
+                                          screen->cursor_current.col,
+                                          drow - delta,
+                                          terminal->row_count,
+                                          terminal->column_count,
+                                          terminal->char_width,
+                                          terminal->char_height);
+            _vte_draw_paint_gasket(terminal->pvt->draw, terminal->pvt->gasket);
+        }
+}
+
+static void
 vte_terminal_paint_cursor(VteTerminal *terminal)
 {
 	VteScreen *screen;
@@ -11176,6 +11264,8 @@ vte_terminal_paint(GtkWidget *widget, GdkRegion *region)
 	vte_terminal_paint_cursor(terminal);
 
 	vte_terminal_paint_im_preedit_string(terminal);
+
+        vte_terminal_paint_gasket(terminal);
 
 	/* Done with various structures. */
 	_vte_draw_end(terminal->pvt->draw);

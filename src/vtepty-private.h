@@ -33,10 +33,12 @@ gboolean __vte_pty_spawn (VtePty *pty,
                           GSpawnFlags spawn_flags,
                           GSpawnChildSetupFunc child_setup,
                           gpointer child_setup_data,
+                          VteGasket *gasket,
                           GPid *child_pid /* out */,
                           GError **error);
 
 gboolean __vte_pty_fork(VtePty *pty,
+                        VteGasket *gasket,
                         GPid *pid,
                         GError **error);
 

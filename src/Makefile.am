@@ -5,7 +5,7 @@ EXTRA_DIST = iso2022.txt
 # The library
 
 headerdir = $(includedir)/vte-$(VTE_API_VERSION)/vte
-header_HEADERS = pty.h reaper.h vte.h vteaccess.h vtepty.h vtetypebuiltins.h vteversion.h vtedeprecated.h
+header_HEADERS = pty.h reaper.h vtegasket.h vte.h vteaccess.h vtepty.h vtetypebuiltins.h vteversion.h vtedeprecated.h
 
 lib_LTLIBRARIES = libvte@VTE_LIBRARY_SUFFIX_U@.la
 
@@ -65,6 +65,8 @@ libvte@VTE_LIBRARY_SUFFIX_U@_la_SOURCES = \
 	vtedraw.c \
 	vtedraw.h \
 	vtedeprecated.h \
+ 	vtegasket.c \
+ 	vtegasket.h \
 	vteint.h \
 	vtepty.h \
 	vtepty-private.h \

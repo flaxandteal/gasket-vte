@@ -42,6 +42,7 @@
 #include <sys/termios.h>
 #endif
 #include <errno.h>
+#include <uuid/uuid.h>
 #include <fcntl.h>
 #include <limits.h>
 #ifdef HAVE_SYS_SYSLIMITS_H
@@ -65,6 +66,7 @@
 #include <gio/gio.h>
 #include "debug.h"
 #include "pty.h"
+#include "vtegasket.h"
 
 #ifdef MSG_NOSIGNAL
 #define PTY_RECVMSG_FLAGS MSG_NOSIGNAL
@@ -207,6 +209,7 @@ typedef struct {
 
 	GSpawnChildSetupFunc extra_child_setup;
 	gpointer extra_child_setup_data;
+        VteGasket *gasket;
 } VtePtyChildSetupData;
 
 /**
@@ -252,6 +255,8 @@ vte_pty_child_setup (VtePty *pty)
 {
         VtePtyPrivate *priv = pty->priv;
 	VtePtyChildSetupData *data = &priv->child_setup_data;
+        VteGasket *gasket = data->gasket;
+
 	int fd = -1;
 	const char *tty = NULL;
         char version[7];
@@ -357,6 +362,13 @@ vte_pty_child_setup (VtePty *pty)
                 g_setenv("TERM", priv->term, TRUE);
         }
 
+ 	/* Gasket environment setup */
+        if (gasket != NULL) {
+                g_return_if_fail(VTE_IS_GASKET(gasket));
+
+                vte_gasket_child_setup(gasket);
+        }
+
         g_snprintf (version, sizeof (version), "%u", VTE_VERSION_NUMERIC);
         g_setenv ("VTE_VERSION", version, TRUE);
 
@@ -413,6 +425,7 @@ __vte_pty_get_argv (const char *command,
  * __vte_pty_merge_environ:
  * @envp: environment vector
  * @term_value: the value for the TERM env variable, or %NULL
+ * @gasket: a #VteGasket from which to take environment variables, or %NULL
  * @inherit: whether to use the parent environment
  *
  * Merges @envp to the parent environment, and returns a new environment vector.
@@ -422,6 +435,7 @@ __vte_pty_get_argv (const char *command,
 static gchar **
 __vte_pty_merge_environ (char **envp,
                          const char *term_value,
+                         VteGasket *gasket,
                          gboolean inherit)
 {
 	GHashTable *table;
@@ -459,6 +473,11 @@ __vte_pty_merge_environ (char **envp,
                 g_hash_table_replace (table, g_strdup ("TERM"), g_strdup (term_value));
 
         g_hash_table_replace (table, g_strdup ("VTE_VERSION"), g_strdup_printf ("%u", VTE_VERSION_NUMERIC));
+
+        if (gasket != NULL) {
+                g_return_val_if_fail(VTE_IS_GASKET(gasket), FALSE);
+                vte_gasket_update_table(gasket, table);
+        }
 
 	array = g_ptr_array_sized_new (g_hash_table_size (table) + 1);
         g_hash_table_iter_init(&iter, table);
@@ -511,6 +530,7 @@ __vte_pty_get_pty_flags(gboolean lastlog,
  * @spawn_flags: flags from #GSpawnFlags
  * @child_setup: function to run in the child just before exec()
  * @child_setup_data: user data for @child_setup
+ * @gasket: a #VteGasket to hook into, or %NULL
  * @child_pid: a location to store the child PID, or %NULL
  * @error: return location for a #GError, or %NULL
  *
@@ -537,6 +557,7 @@ __vte_pty_spawn (VtePty *pty,
                  GSpawnFlags spawn_flags,
                  GSpawnChildSetupFunc child_setup,
                  gpointer child_setup_data,
+                 VteGasket *gasket,
                  GPid *child_pid /* out */,
                  GError **error)
 {
@@ -559,7 +580,7 @@ __vte_pty_spawn (VtePty *pty,
         spawn_flags &= ~VTE_SPAWN_NO_PARENT_ENVV;
 
         /* add the given environment to the childs */
-        envp2 = __vte_pty_merge_environ (envv, pty->priv->term, inherit_envv);
+        envp2 = __vte_pty_merge_environ (envv, pty->priv->term, gasket, inherit_envv);
 
         _VTE_DEBUG_IF (VTE_DEBUG_MISC) {
                 g_printerr ("Spawing command:\n");
@@ -573,6 +594,7 @@ __vte_pty_spawn (VtePty *pty,
                             directory ? directory : "(none)");
         }
 
+        data->gasket = gasket;
 	data->extra_child_setup = child_setup;
 	data->extra_child_setup_data = child_setup_data;
 
@@ -614,6 +636,7 @@ __vte_pty_spawn (VtePty *pty,
 /*
  * __vte_pty_fork:
  * @pty: a #VtePty
+ * @gasket: a #VteGasket to hook into, or %NULL
  * @pid: (out) a location to store a #GPid, or %NULL
  * @error: a location to store a #GError, or %NULL
  *
@@ -623,11 +646,16 @@ __vte_pty_spawn (VtePty *pty,
  */
 gboolean
 __vte_pty_fork(VtePty *pty,
+               VteGasket *gasket,
                GPid *pid,
                GError **error)
 {
 #ifdef HAVE_FORK
         gboolean ret = TRUE;
+
+	VtePtyPrivate *priv = pty->priv;
+        VtePtyChildSetupData *data = &priv->child_setup_data;
+        data->gasket = gasket;
 
         *pid = fork();
         switch (*pid) {
@@ -652,7 +680,7 @@ __vte_pty_fork(VtePty *pty,
         return FALSE;
 #endif /* HAVE_FORK */
 }
-
+ 
 /**
  * vte_pty_set_size:
  * @pty: a #VtePty
@@ -1964,6 +1992,7 @@ get_vte_pty_for_fd (int fd)
  * @lastlog: %TRUE if the lastlog should be updated
  * @utmp: %TRUE if the utmp or utmpx log should be updated
  * @wtmp: %TRUE if the wtmp or wtmpx log should be updated
+ * @gasket: a #VteGasket to hook into, or %NULL
  *
  * Starts a new copy of @command running under a psuedo-terminal, optionally in
  * the supplied @directory, with window size set to @rows x @columns
@@ -1985,7 +2014,8 @@ _vte_pty_open(pid_t *child,
               int rows,
               gboolean lastlog,
               gboolean utmp,
-              gboolean wtmp)
+              gboolean wtmp,
+              VteGasket *gasket)
 {
         VtePty *pty;
         GPid pid;
@@ -2008,11 +2038,12 @@ _vte_pty_open(pid_t *child,
                                       env_add,
                                       spawn_flags,
                                       NULL, NULL,
+                                      gasket,
                                       &pid,
                                       NULL);
                 g_strfreev(real_argv);
         } else {
-                ret = __vte_pty_fork(pty, &pid, NULL);
+                ret = __vte_pty_fork(pty, gasket, &pid, NULL);
         }
 
         if (!ret) {

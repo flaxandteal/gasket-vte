@@ -122,6 +122,7 @@ void _vte_draw_draw_rectangle(struct _vte_draw *draw,
 void _vte_draw_set_source_color_alpha (struct _vte_draw *draw,
                                        const PangoColor *color,
                                        guchar            alpha);
+void _vte_draw_paint_gasket(struct _vte_draw *draw, VteGasket *gasket);
 
 G_END_DECLS
 
