@@ -17,6 +17,7 @@
 #include "debug.h"
 
 #define GASKET_CABOOSE ("__GASKET_CABOOSE__\n")
+#define GASKET_STATION_RESET ("__GASKET_STATION_RESET__")
 #define GASKET_ENVIRONMENT_GASKET_ID ("GASKET_ID")
 #define GASKET_ENVIRONMENT_GASKET_SOCKET ("GASKET_SOCKET")
 #define GASKET_TMPDIR_PRINTF ("/tmp/gasket-%d")
@@ -524,6 +525,45 @@ _vte_gasket_update_svg(gpointer user_data)
 }
 
 /**
+ * _vte_gasket_reset_train
+ * @key:a #gpointer to the key
+ * @value: a #gpointer to the value
+ * @data: a #gpointer to a #VteGasket
+ *
+ * This function resets a train in the hash table. It assumes the caller
+ * handles terminal invalidation. This is a #GHFunc.
+ */
+void
+_vte_gasket_reset_train(gpointer key, gpointer value, gpointer data)
+{
+    VteGasketTrain *train = (VteGasketTrain*)value;
+
+    g_string_truncate(train->svg, 0);
+    train->invalid = TRUE;
+}
+
+/**
+ * vte_gasket_reset_all:
+ * @gasket: a #VteGasket
+ *
+ * Reset all trains to blank. Used to forcibly clear the screen.
+ * Returns FALSE to allow use as a GThreadFunc.
+ */
+gboolean
+vte_gasket_reset_all(VteGasket* gasket)
+{
+    VteGasketPrivate *priv = gasket->priv;
+
+    /* Reset via foreach */
+    g_hash_table_foreach(priv->train_hash, _vte_gasket_reset_train, gasket);
+
+    /* Invalidate the terminal */
+    priv->invalidation_function(priv->invalidation_data);
+
+    return FALSE;
+}
+
+/**
  * _vte_gasket_handle_new_connection:
  * @gasket: a #VteGasket
  * @fd: a file descriptor for the new connection
@@ -561,20 +601,27 @@ _vte_gasket_handle_new_connection(struct _VteGasketConnectionData *data)
 			g_strstrip(svg->str);
             svg->len = strlen(svg->str);
 
-            /* Prepare a temporary variable to handle update info */
-            update_data =
-                (struct _VteGasketUpdateSVGData*)malloc(sizeof(struct _VteGasketUpdateSVGData));
+            /* Check for station command */
+            if (g_strcmp0(svg->str, GASKET_STATION_RESET) == 0) {
+                /* Reset all trains */
+                g_main_context_invoke(NULL, (GSourceFunc)vte_gasket_reset_all, gasket);
+            }
+            else {
+                /* Prepare a temporary variable to handle update info */
+                update_data =
+                    (struct _VteGasketUpdateSVGData*)malloc(sizeof(struct _VteGasketUpdateSVGData));
 
-            /* Inject the SVG string (hold here for the moment) */
-            update_data->svg = g_string_new(svg->str);
+                /* Inject the SVG string (hold here for the moment) */
+                update_data->svg = g_string_new(svg->str);
 
-            update_data->gasket = gasket;
+                update_data->gasket = gasket;
 
-            /* Use the file descriptor as an index for the SVG */
-            update_data->connection_index = gasket_socket_conn;
+                /* Use the file descriptor as an index for the SVG */
+                update_data->connection_index = gasket_socket_conn;
 
-            /* Break into main thread and force redraw */
-            g_main_context_invoke(NULL, _vte_gasket_update_svg, update_data);
+                /* Break into main thread and force redraw */
+                g_main_context_invoke(NULL, _vte_gasket_update_svg, update_data);
+            }
 
             /* Wipe the SVG string to start the next chunk */
 			g_string_truncate(svg, 0);
@@ -719,14 +766,12 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
         svg = train->svg;
 
         err = NULL;
-        printf("Onto connection index %d - %s\n", connection_index, train->invalid ? "invalid" : "keep");
         /* Only regenerate the RSVG if marked as invalid */
         if (svg != NULL && train->invalid) {
-            _vte_debug_print (VTE_DEBUG_GASKET,
-                "Re-parsing Train #%d (=connection fd) as flagged\n",
-                connection_index);
-
             if (svg->len > 0) {
+                _vte_debug_print (VTE_DEBUG_GASKET,
+                    "Re-parsing Train #%d (=connection fd) as flagged\n",
+                    connection_index);
                 new_handle = rsvg_handle_new_from_data(svg->str, strlen(svg->str), &err);
                 if (err == NULL) {
                     if (handle != NULL) {
