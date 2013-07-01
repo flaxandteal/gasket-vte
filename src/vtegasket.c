@@ -24,6 +24,11 @@
 
 typedef struct _VteGasketPrivate VteGasketPrivate;
 
+struct _VteGasketConnectionData {
+    VteGasket *gasket;
+    unsigned int connection_index;
+};
+
 struct _VteGasketTargetExtents {
     int row;
     int col;
@@ -35,13 +40,17 @@ struct _VteGasketTargetExtents {
     long height;
 };
 
+typedef struct _VteGasketTrain {
+    GString* svg;
+    gboolean invalid;
+    void* rsvg_handle;
+} VteGasketTrain;
+
 struct _VteGasketPrivate {
     uuid_t* uuid;
 
     struct _VteGasketTargetExtents extents;
- 	void* svg_handle;
- 	gboolean svg_invalid;
- 	GString* svg;
+    GHashTable* train_hash;
 
     GSourceFunc invalidation_function;
     gpointer invalidation_data;
@@ -63,6 +72,7 @@ struct _VteGasketClass {
 };
 
 struct _VteGasketUpdateSVGData {
+    int connection_index;
     GString* svg;
     VteGasket* gasket;
 };
@@ -173,9 +183,7 @@ vte_gasket_init(VteGasket* gasket)
     priv = gasket->priv = G_TYPE_INSTANCE_GET_PRIVATE (gasket, VTE_TYPE_GASKET, VteGasketPrivate);
 
     priv->uuid = NULL;
-	priv->svg = g_string_new("");
-	priv->svg_invalid = FALSE;
-	priv->svg_handle = NULL;
+	priv->train_hash = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
     priv->socket = 0;
     priv->socket_made = FALSE;
     priv->parent_pid = getpid();
@@ -185,6 +193,9 @@ static void
 vte_gasket_finalize(GObject *object)
 {
     VteGasket *gasket = VTE_GASKET (object);
+
+    //FIXME: check for outstanding members
+    g_hash_table_destroy(gasket->priv->train_hash);
 
     vte_gasket_close(gasket);
 }
@@ -423,7 +434,7 @@ vte_gasket_make_socket(VteGasket* gasket)
 
     /* Name socket after UUID */
 	sprintf(socket_str, GASKET_SOCKET_PRINTF, priv->parent_pid, uuid_str);
-	socket_ret = socket(AF_UNIX, SOCK_STREAM, 0);
+	//socket_ret = socket(AF_UNIX, SOCK_STREAM, 0);
 	if ((socket_ret = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		g_warning("Error (%s) creating new Unix socket.",
 			  g_strerror(errno));
@@ -471,7 +482,7 @@ vte_gasket_launch_listen(VteGasket *gasket)
       "Launching a listener thread for Gasket\n");
 
     /* Start the listener */
-	g_thread_new("gasket_platform", (GThreadFunc)vte_gasket_listen, gasket);
+	g_thread_new("gasket_station", (GThreadFunc)vte_gasket_listen, gasket);
 }
 
 gboolean
@@ -482,11 +493,25 @@ _vte_gasket_update_svg(gpointer user_data)
 
     VteGasketPrivate *priv = update_data->gasket->priv;
 
+    VteGasketTrain *train = (VteGasketTrain*)g_hash_table_lookup(priv->train_hash, &update_data->connection_index);
+    gint *k;
+
+    if (train == NULL)
+    {
+        train = (VteGasketTrain*)malloc(sizeof(VteGasketTrain));
+        train->svg = g_string_new("");
+        train->rsvg_handle = NULL;
+
+        k = g_new(gint, 1);
+        *k = update_data->connection_index;
+        g_hash_table_insert(priv->train_hash, k, train);
+    }
+
     /* Inject the SVG string (done here as thread-safe) */
-	g_string_assign(priv->svg, update_data->svg->str);
+	g_string_assign(train->svg, update_data->svg->str);
 
     /* Flag the SVG as being new */
-    priv->svg_invalid = TRUE;
+    train->invalid = TRUE;
 
     /* Tidy up carrier */
     g_string_free(update_data->svg, TRUE);
@@ -494,28 +519,132 @@ _vte_gasket_update_svg(gpointer user_data)
 
     /* Invalidate the terminal */
     priv->invalidation_function(priv->invalidation_data);
+
+    return FALSE;
+}
+
+/**
+ * _vte_gasket_handle_new_connection:
+ * @gasket: a #VteGasket
+ * @fd: a file descriptor for the new connection
+ *
+ * Handle connections from the socket and read in svg.
+ */
+gpointer
+_vte_gasket_handle_new_connection(struct _VteGasketConnectionData *data)
+{
+    VteGasket *gasket = data->gasket;
+    int gasket_socket_conn = data->connection_index;
+
+	GError* err = NULL;
+
+	GString buffer[1024];
+	gsize eol;
+
+	GIOChannel* gasket_channel;
+    struct _VteGasketUpdateSVGData* update_data;
+    struct _VteGasketConnectionData* destroy_data;
+
+	GString* svg = g_string_new("");
+
+    free(data);
+
+    /* Start reading in SVG */
+	gasket_channel = g_io_channel_unix_new(gasket_socket_conn);
+
+    /* Read this chunk into buffer */
+	while (g_io_channel_read_line_string(gasket_channel, buffer, &eol, &err) != G_IO_STATUS_EOF) {
+        /* If we find a caboose, process and continue */
+		if (g_strcmp0(buffer->str, GASKET_CABOOSE) == 0) {
+            /* Clean whitespace */
+            //FIXME: based on its code definition, this updates GString appropriately - it seems abusive but no better alternative presents itself
+			g_strstrip(svg->str);
+            svg->len = strlen(svg->str);
+
+            /* Prepare a temporary variable to handle update info */
+            update_data =
+                (struct _VteGasketUpdateSVGData*)malloc(sizeof(struct _VteGasketUpdateSVGData));
+
+            /* Inject the SVG string (hold here for the moment) */
+            update_data->svg = g_string_new(svg->str);
+
+            update_data->gasket = gasket;
+
+            /* Use the file descriptor as an index for the SVG */
+            update_data->connection_index = gasket_socket_conn;
+
+            /* Break into main thread and force redraw */
+            g_main_context_invoke(NULL, _vte_gasket_update_svg, update_data);
+
+            /* Wipe the SVG string to start the next chunk */
+			g_string_truncate(svg, 0);
+		} else {
+            /* Add on the new content to the SVG string */
+			g_string_append_printf(svg, "%s", buffer->str);
+		}
+	}
+
+	if (err != NULL) {
+		fprintf(stderr, "Looping: %s\n", err->message);
+		g_error_free(err);
+	}
+
+	g_string_free(svg, TRUE);
+
+    destroy_data = g_new(struct _VteGasketConnectionData, 1);
+    destroy_data->gasket = gasket;
+    destroy_data->connection_index = gasket_socket_conn;
+	g_main_context_invoke(NULL, _vte_gasket_close_connection, destroy_data);
+
+    return NULL;
+}
+
+
+/**
+ * _vte_gasket_close_connection
+ * data: a struct _VteGasketConnectionData containing a pointer to the #VteGasket and the connection index to be destroyed
+ */
+gboolean
+_vte_gasket_close_connection(gpointer data)
+{
+    struct _VteGasketConnectionData* conn_data = (struct _VteGasketConnectionData*)data;
+    VteGasketPrivate *priv = conn_data->gasket->priv;
+    gint connection_index = conn_data->connection_index;
+
+    VteGasketTrain *train = g_hash_table_lookup(priv->train_hash, &connection_index);
+
+    if (train == NULL)
+        return FALSE;
+
+    close(connection_index);
+
+    g_string_free(train->svg, TRUE);
+
+    if (train->rsvg_handle != NULL)
+        g_object_unref(train->rsvg_handle);
+
+    g_hash_table_remove(priv->train_hash, &connection_index);
+
+    printf("CLOSED %d\n", connection_index);
+
+    priv->invalidation_function(priv->invalidation_data);
+
+    return FALSE;
 }
 
 /**
  * vte_gasket_listen:
  * @gasket: a #VteGasket
  *
- * Listen on the socket.
+ * Accept connections from the socket.
  */
 gpointer
 vte_gasket_listen(VteGasket *gasket)
 {
-	GError* err = NULL;
-
-	GString* svg = g_string_new("");
-	GString buffer[1024];
-	gsize eol;
     int socket_ret;
 	unsigned int local_len, gasket_socket_conn;
+    struct _VteGasketConnectionData *conn_data;
 	struct sockaddr_un remote;
-
-	GIOChannel* gasket_channel;
-    struct _VteGasketUpdateSVGData* update_data;
 
     /* Enter acceptance loop */
 	for (;;) {
@@ -531,43 +660,13 @@ vte_gasket_listen(VteGasket *gasket)
         }
         gasket_socket_conn = (unsigned int)socket_ret;
 
-        /* Start reading in SVG */
-		gasket_channel = g_io_channel_unix_new(gasket_socket_conn);
+        conn_data = (struct _VteGasketConnectionData*)malloc(sizeof(struct _VteGasketConnectionData));
+        conn_data->gasket = gasket;
+        conn_data->connection_index = gasket_socket_conn;
 
-        /* Read this chunk into buffer */
-		while (g_io_channel_read_line_string(gasket_channel, buffer, &eol, &err) != G_IO_STATUS_EOF) {
-            /* If we find a caboose, process and continue */
-			if (g_strcmp0(buffer->str, GASKET_CABOOSE) == 0) {
-                /* Clean whitespace */
-				g_strstrip(svg->str);
+        g_thread_new("gasket_platform", (GThreadFunc)_vte_gasket_handle_new_connection, conn_data);
 
-                /* Prepare a temporary variable to handle update info */
-                update_data =
-                    (struct _VteGasketUpdateSVGData*)malloc(sizeof(struct _VteGasketUpdateSVGData));
-
-                /* Inject the SVG string (hold here for the moment) */
-                update_data->svg = g_string_new(svg->str);
-                update_data->gasket = gasket;
-
-                /* Break into main thread and force redraw */
-                g_main_context_invoke(NULL, _vte_gasket_update_svg, update_data);
-
-                /* Wipe the SVG string to start the next chunk */
-				g_string_truncate(svg, 0);
-			} else {
-                /* Add on the new content to the SVG string */
-				g_string_append_printf(svg, "%s", buffer->str);
-			}
-		}
-
-		if (err != NULL) {
-			fprintf(stderr, "Looping: %s\n", err->message);
-			g_error_free(err);
-		}
-
-		close(gasket_socket_conn);
 	}
-	g_string_free(svg, TRUE);
 
     return NULL;
 }
@@ -592,8 +691,13 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
     GError *err;
     FILE* err_back; 
 
+    GHashTableIter iter;
+    gpointer k, v;
+    gint connection_index;
+    VteGasketTrain* train;
+
     /* Only bother if we are initialized */
-    if (priv->uuid == NULL || priv->svg == NULL)
+    if (priv->uuid == NULL || g_hash_table_size(priv->train_hash) == 0)
         return;
 
     //TODO: double-check explanation
@@ -602,52 +706,67 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
 	    (CLAMP(extents->row, 0, extents->row_count - 1) != extents->row))
 		return;
 
-    /* Pick out SVG content and handle from Gasket object */
-	handle = (RsvgHandle*)priv->svg_handle;
-	new_handle = NULL;
-	svg = priv->svg;
+    g_hash_table_iter_init(&iter, priv->train_hash);
 
-	err = NULL;
-    /* Only regenerate the RSVG if marked as invalid */
-	if (svg != NULL && priv->svg_invalid) {
-		if (svg->len > 0) {
-            new_handle = rsvg_handle_new_from_data(svg->str, strlen(svg->str), &err);
-			if (err == NULL) {
-				if (handle != NULL) {
-					g_object_unref(handle);
-				}
-				handle = new_handle;
-			} else {
-				fprintf(stderr, "Creating handle problem: %s\n", err->message);
-				g_error_free(err);
-				err = NULL;
-				err_back = fopen("/tmp/gasket/gasket_errbak.svg", "w");
-				if (err_back == NULL) {
-					perror("Couldn't save problematic SVG backup");
-				} else {
-					fprintf(err_back, "%s", svg->str);
-					fclose(err_back);
-				}
-			}
-		} else {
-			if (handle != NULL) {
-				g_object_unref(handle);
-			}
-			handle = NULL;
-		}
-	}
+    while (g_hash_table_iter_next(&iter, &k, &v))
+    {
+        connection_index = *(int*)k;
+        train = (VteGasketTrain*)v;
 
-    /* Get dimension data to rescale appropriately */
-	if (handle != NULL) {
-		err = NULL;
-		rsvg_handle_get_dimensions(handle, &dims);
+        /* Pick out SVG content and handle from Gasket object */
+        handle = (RsvgHandle*)train->rsvg_handle;
+        new_handle = NULL;
+        svg = train->svg;
 
-		cairo_save(cr);
-		cairo_scale(cr, extents->width, extents->height);
-		rsvg_handle_render_cairo(handle, cr);
-		cairo_restore(cr);
-	}
-	priv->svg_handle = handle;
+        err = NULL;
+        printf("Onto connection index %d - %s\n", connection_index, train->invalid ? "invalid" : "keep");
+        /* Only regenerate the RSVG if marked as invalid */
+        if (svg != NULL && train->invalid) {
+            _vte_debug_print (VTE_DEBUG_GASKET,
+                "Re-parsing Train #%d (=connection fd) as flagged\n",
+                connection_index);
+
+            if (svg->len > 0) {
+                new_handle = rsvg_handle_new_from_data(svg->str, strlen(svg->str), &err);
+                if (err == NULL) {
+                    if (handle != NULL) {
+                        g_object_unref(handle);
+                    }
+                    handle = new_handle;
+                } else {
+                    fprintf(stderr, "Creating handle problem: %s\n", err->message);
+                    g_error_free(err);
+                    err = NULL;
+                    err_back = fopen("/tmp/gasket/gasket_errbak.svg", "w");
+                    if (err_back == NULL) {
+                        perror("Couldn't save problematic SVG backup");
+                    } else {
+                        fprintf(err_back, "%s", svg->str);
+                        fclose(err_back);
+                    }
+                }
+            } else {
+                if (handle != NULL) {
+                    g_object_unref(handle);
+                }
+                handle = NULL;
+            }
+
+            train->invalid = FALSE;
+        }
+
+        /* Get dimension data to rescale appropriately */
+        if (handle != NULL) {
+            err = NULL;
+            rsvg_handle_get_dimensions(handle, &dims);
+
+            cairo_save(cr);
+            cairo_scale(cr, extents->width, extents->height);
+            rsvg_handle_render_cairo(handle, cr);
+            cairo_restore(cr);
+        }
+        train->rsvg_handle = handle;
+    }
 }
 
 void
