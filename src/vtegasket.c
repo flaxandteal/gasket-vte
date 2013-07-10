@@ -16,6 +16,7 @@
 #include "vtegasket-private.h"
 #include "debug.h"
 
+#define GASKET_MAXFILEPATH 1024
 #define GASKET_CABOOSE ("__GASKET_CABOOSE__\n")
 #define GASKET_STATION_RESET ("__GASKET_STATION_RESET__")
 #define GASKET_ENVIRONMENT_GASKET_ID ("GASKET_ID")
@@ -86,12 +87,12 @@ _vte_gasket_close_socket(VteGasket *gasket)
     char tmpdir[300];
         
     //TODO: Implement close socket
-	if (gasket->priv->socket_made)
+    if (gasket->priv->socket_made)
     {
         close(gasket->priv->socket);
 
         uuid_unparse(*gasket->priv->uuid, uuid_str);
-	    sprintf(socket_str, GASKET_SOCKET_PRINTF, gasket->priv->parent_pid, uuid_str);
+        sprintf(socket_str, GASKET_SOCKET_PRINTF, gasket->priv->parent_pid, uuid_str);
         sprintf(tmpdir, GASKET_TMPDIR_PRINTF, gasket->priv->parent_pid);
 
         if (unlink(socket_str) == -1)
@@ -119,15 +120,15 @@ _vte_gasket_close_socket(VteGasket *gasket)
 gboolean
 _vte_gasket_setenv(int parent_pid, uuid_t *uuid_ptr)
 {
-	char uuid_str[300], socket_str[330];
-	uuid_unparse(*uuid_ptr, uuid_str);
+    char uuid_str[300], socket_str[330];
+    uuid_unparse(*uuid_ptr, uuid_str);
 
     _vte_debug_print (VTE_DEBUG_GASKET,
         "Setting up Gasket for child pty: UUID = %s\n",
         uuid_str);
 
     /* Set the Gasket socket path from the UUID */
-	sprintf(socket_str, GASKET_SOCKET_PRINTF, parent_pid, uuid_str);
+    sprintf(socket_str, GASKET_SOCKET_PRINTF, parent_pid, uuid_str);
 
     /* Set the environment variables within the PTY that called us */
     if (!g_setenv(GASKET_ENVIRONMENT_GASKET_ID, uuid_str, TRUE) ||
@@ -135,7 +136,7 @@ _vte_gasket_setenv(int parent_pid, uuid_t *uuid_ptr)
         _vte_debug_print (VTE_DEBUG_GASKET,
             "Could not set Gasket environment variables\n");
         return FALSE;
-	}
+    }
     return TRUE;
 }
 
@@ -184,7 +185,7 @@ vte_gasket_init(VteGasket* gasket)
     priv = gasket->priv = G_TYPE_INSTANCE_GET_PRIVATE (gasket, VTE_TYPE_GASKET, VteGasketPrivate);
 
     priv->uuid = NULL;
-	priv->train_hash = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
+    priv->train_hash = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
     priv->socket = 0;
     priv->socket_made = FALSE;
     priv->parent_pid = getpid();
@@ -315,9 +316,9 @@ VteGasket*
 vte_gasket_new(GError **error)
 {
     uuid_t uuid;
-	char uuid_str[300];
+    char uuid_str[300];
 
-	uuid_generate(uuid);
+    uuid_generate(uuid);
     uuid_unparse(uuid, uuid_str);
 
     return vte_gasket_new_with_uuid(uuid_str, error);
@@ -383,8 +384,8 @@ _vte_gasket_make_tmpdir(VteGasket* gasket)
 
     if (mkdir(tmpdir, S_IRWXU) == -1 && errno != EEXIST)
     {
-		g_warning("Error (%s) creating temporary directory.",
-			  g_strerror(errno));
+        g_warning("Error (%s) creating temporary directory.",
+              g_strerror(errno));
         _vte_debug_print (VTE_DEBUG_GASKET,
           "Cannot create a temporary directory\n");
         return FALSE;
@@ -405,11 +406,11 @@ vte_gasket_make_socket(VteGasket* gasket)
 {
     VteGasketPrivate *priv = gasket->priv;
 
-	gchar uuid_str[300];
+    gchar uuid_str[300];
     int socket_ret;
-	unsigned int gasket_socket;
-	struct sockaddr_un local;
-	gchar socket_str[330];
+    unsigned int gasket_socket;
+    struct sockaddr_un local;
+    gchar socket_str[330];
 
     if (priv->uuid == NULL)
     {
@@ -422,7 +423,7 @@ vte_gasket_make_socket(VteGasket* gasket)
     _vte_gasket_make_tmpdir(gasket);
 
     /* Get a string representation of the UUID */
-	uuid_unparse(*priv->uuid, uuid_str);
+    uuid_unparse(*priv->uuid, uuid_str);
 
     _vte_debug_print (VTE_DEBUG_GASKET,
       "Making socket for Gasket with UUID: %s\n",
@@ -434,38 +435,38 @@ vte_gasket_make_socket(VteGasket* gasket)
      * http://beej.us/guide/bgipc/output/html/multipage/unixsock.html */
 
     /* Name socket after UUID */
-	sprintf(socket_str, GASKET_SOCKET_PRINTF, priv->parent_pid, uuid_str);
-	//socket_ret = socket(AF_UNIX, SOCK_STREAM, 0);
-	if ((socket_ret = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		g_warning("Error (%s) creating new Unix socket.",
-			  g_strerror(errno));
+    sprintf(socket_str, GASKET_SOCKET_PRINTF, priv->parent_pid, uuid_str);
+    //socket_ret = socket(AF_UNIX, SOCK_STREAM, 0);
+    if ((socket_ret = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+        g_warning("Error (%s) creating new Unix socket.",
+              g_strerror(errno));
         _vte_debug_print (VTE_DEBUG_GASKET,
           "Cannot create a new Unix socket\n");
         return FALSE;
-	}
+    }
     gasket_socket = (unsigned int)socket_ret;
 
     /* Working with Unix sockets here */
-	local.sun_family = AF_UNIX;
+    local.sun_family = AF_UNIX;
 
     /* Ensure we start afresh */
-	strcpy(local.sun_path, socket_str);
-	unlink(local.sun_path);
+    strcpy(local.sun_path, socket_str);
+    unlink(local.sun_path);
 
     /* Attempt to bind the socket to a local address */
-	if (bind(gasket_socket, (struct sockaddr*)&local, sizeof(struct sockaddr_un)) == -1) {
-		g_warning("Error (%s) binding unix socket.",
-			  g_strerror(errno));
+    if (bind(gasket_socket, (struct sockaddr*)&local, sizeof(struct sockaddr_un)) == -1) {
+        g_warning("Error (%s) binding unix socket.",
+              g_strerror(errno));
         _vte_debug_print (VTE_DEBUG_GASKET,
           "Cannot bind new Unix socket\n");
         return FALSE;
-	}
+    }
 
     priv->socket = gasket_socket;
     priv->socket_made = TRUE;
 
     /* Mark this socket as for listening on */
-	listen(gasket_socket, 5);
+    listen(gasket_socket, 5);
 
     return TRUE;
 }
@@ -483,7 +484,7 @@ vte_gasket_launch_listen(VteGasket *gasket)
       "Launching a listener thread for Gasket\n");
 
     /* Start the listener */
-	g_thread_new("gasket_station", (GThreadFunc)vte_gasket_listen, gasket);
+    g_thread_new("gasket_station", (GThreadFunc)vte_gasket_listen, gasket);
 }
 
 gboolean
@@ -509,7 +510,7 @@ _vte_gasket_update_svg(gpointer user_data)
     }
 
     /* Inject the SVG string (done here as thread-safe) */
-	g_string_assign(train->svg, update_data->svg->str);
+    g_string_assign(train->svg, update_data->svg->str);
 
     /* Flag the SVG as being new */
     train->invalid = TRUE;
@@ -576,29 +577,58 @@ _vte_gasket_handle_new_connection(struct _VteGasketConnectionData *data)
     VteGasket *gasket = data->gasket;
     int gasket_socket_conn = data->connection_index;
 
-	GError* err = NULL;
+    GError* err = NULL;
 
-	GString buffer[1024];
-	gsize eol;
+    gint buffer_len = 128;
+    gchar read_buffer[buffer_len+1], buffer[2*buffer_len+2], layover_buffer[2*buffer_len+2];
+    gchar** train_set;
+    gchar* eol;
+    gsize bytes_read;
+    gint train_set_index;
 
-	GIOChannel* gasket_channel;
+    GIOChannel* gasket_channel;
     struct _VteGasketUpdateSVGData* update_data;
     struct _VteGasketConnectionData* destroy_data;
 
-	GString* svg = g_string_new("");
+    GString* svg = g_string_new("");
+    layover_buffer[0] = '\0';
 
     free(data);
 
     /* Start reading in SVG */
-	gasket_channel = g_io_channel_unix_new(gasket_socket_conn);
+    gasket_channel = g_io_channel_unix_new(gasket_socket_conn);
+    g_io_channel_set_encoding(gasket_channel, NULL, &err);
+    g_io_channel_set_buffered(gasket_channel, FALSE);
 
     /* Read this chunk into buffer */
-	while (g_io_channel_read_line_string(gasket_channel, buffer, &eol, &err) != G_IO_STATUS_EOF) {
+    while (g_io_channel_read_chars(gasket_channel, read_buffer, buffer_len, &bytes_read, &err) != G_IO_STATUS_EOF) {
+        read_buffer[bytes_read] = '\0';
+        sprintf(buffer, "%s%s", layover_buffer, read_buffer);
+        train_set = g_strsplit(buffer, GASKET_CABOOSE, -1);
+        train_set_index = -1;
+        do
+        {
+            eol = train_set[++train_set_index];
+        }
+        while (eol != NULL);
+
+        if (train_set_index == 0)
+            continue;
+
         /* If we find a caboose, process and continue */
-		if (g_strcmp0(buffer->str, GASKET_CABOOSE) == 0) {
+        if (train_set_index > 1) {
+            if (train_set_index == 2) {
+                g_string_append_printf(svg, "%s", train_set[0]);
+        FILE *f=fopen("/tmp/testc", "a"); fprintf(f, "%s*\n", train_set[0]); fclose(f);
+            }
+            else {
+                g_string_printf(svg, "%s", train_set[train_set_index - 3]);
+        FILE *f=fopen("/tmp/testc", "a"); fprintf(f, "<%s>\n", train_set[train_set_index - 3]); fclose(f);
+            }
+
             /* Clean whitespace */
             //FIXME: based on its code definition, this updates GString appropriately - it seems abusive but no better alternative presents itself
-			g_strstrip(svg->str);
+            g_strstrip(svg->str);
             svg->len = strlen(svg->str);
 
             /* Check for station command */
@@ -623,25 +653,30 @@ _vte_gasket_handle_new_connection(struct _VteGasketConnectionData *data)
                 g_main_context_invoke(NULL, _vte_gasket_update_svg, update_data);
             }
 
-            /* Wipe the SVG string to start the next chunk */
-			g_string_truncate(svg, 0);
-		} else {
+            /* Wipe the SVG string to start the next chunk, beginning with any left-over chars */
+            g_string_truncate(svg, 0);
+            sprintf(layover_buffer, "%s", train_set[train_set_index-1]);
+        } else {
             /* Add on the new content to the SVG string */
-			g_string_append_printf(svg, "%s", buffer->str);
-		}
-	}
+            eol = train_set[0] + strlen(layover_buffer);
+            g_string_append_printf(svg, "%s", layover_buffer);
 
-	if (err != NULL) {
-		fprintf(stderr, "Looping: %s\n", err->message);
-		g_error_free(err);
-	}
+            sprintf(layover_buffer, "%s", eol);
+        }
+        g_strfreev(train_set);
+    }
 
-	g_string_free(svg, TRUE);
+    if (err != NULL) {
+        fprintf(stderr, "Looping: %s\n", err->message);
+        g_error_free(err);
+    }
+
+    g_string_free(svg, TRUE);
 
     destroy_data = g_new(struct _VteGasketConnectionData, 1);
     destroy_data->gasket = gasket;
     destroy_data->connection_index = gasket_socket_conn;
-	g_main_context_invoke(NULL, _vte_gasket_close_connection, destroy_data);
+    g_main_context_invoke(NULL, _vte_gasket_close_connection, destroy_data);
 
     return NULL;
 }
@@ -689,20 +724,20 @@ gpointer
 vte_gasket_listen(VteGasket *gasket)
 {
     int socket_ret;
-	unsigned int local_len, gasket_socket_conn;
+    unsigned int local_len, gasket_socket_conn;
     struct _VteGasketConnectionData *conn_data;
-	struct sockaddr_un remote;
+    struct sockaddr_un remote;
 
     /* Enter acceptance loop */
-	for (;;) {
+    for (;;) {
         /* Accept data via socket */
-		local_len = sizeof(struct sockaddr_un);
-		socket_ret = accept(gasket->priv->socket, (struct sockaddr*)&remote, &local_len);
+        local_len = sizeof(struct sockaddr_un);
+        socket_ret = accept(gasket->priv->socket, (struct sockaddr*)&remote, &local_len);
 
         if (socket_ret == -1)
         {
             g_warning("Could not accept requests from socket - %s\n",
-			  g_strerror(errno));
+              g_strerror(errno));
             return NULL;
         }
         gasket_socket_conn = (unsigned int)socket_ret;
@@ -713,7 +748,7 @@ vte_gasket_listen(VteGasket *gasket)
 
         g_thread_new("gasket_platform", (GThreadFunc)_vte_gasket_handle_new_connection, conn_data);
 
-	}
+    }
 
     return NULL;
 }
@@ -733,10 +768,11 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
 
     RsvgHandle *handle, *new_handle;
     GString *svg;
-	RsvgDimensionData dims;
+    RsvgDimensionData dims;
 
     GError *err;
     FILE* err_back; 
+    gchar err_back_filename[GASKET_MAXFILEPATH], uuid_str[1024], tmpdir[GASKET_MAXFILEPATH];
 
     GHashTableIter iter;
     gpointer k, v;
@@ -747,11 +783,16 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
     if (priv->uuid == NULL || g_hash_table_size(priv->train_hash) == 0)
         return;
 
+    /* Locate the current tmpdir */
+    uuid_unparse(*gasket->priv->uuid, uuid_str);
+    sprintf(tmpdir, GASKET_TMPDIR_PRINTF, gasket->priv->parent_pid);
+    sprintf(err_back_filename, "%s/%s", tmpdir, "gasket_errback.svg");
+
     //TODO: double-check explanation
     /* Ensure we are not located on the boundaries of the window */
-	if ((CLAMP(extents->col, 0, extents->col_count - 1) != extents->col) ||
-	    (CLAMP(extents->row, 0, extents->row_count - 1) != extents->row))
-		return;
+    if ((CLAMP(extents->col, 0, extents->col_count - 1) != extents->col) ||
+        (CLAMP(extents->row, 0, extents->row_count - 1) != extents->row))
+        return;
 
     g_hash_table_iter_init(&iter, priv->train_hash);
 
@@ -782,7 +823,7 @@ vte_gasket_paint_overlay(VteGasket *gasket, cairo_t* cr)
                     fprintf(stderr, "Creating handle problem: %s\n", err->message);
                     g_error_free(err);
                     err = NULL;
-                    err_back = fopen("/tmp/gasket/gasket_errbak.svg", "w");
+                    err_back = fopen(err_back_filename, "w");
                     if (err_back == NULL) {
                         perror("Couldn't save problematic SVG backup");
                     } else {
@@ -824,7 +865,7 @@ vte_gasket_child_setup(VteGasket *gasket)
 void
 vte_gasket_update_table(VteGasket *gasket, GHashTable* table)
 {
-	char uuid_str[300], socket_str[330];
+    char uuid_str[300], socket_str[330];
     //FIXME: error tests before dereference
     uuid_t *uuid = gasket->priv->uuid;
 
@@ -833,12 +874,12 @@ vte_gasket_update_table(VteGasket *gasket, GHashTable* table)
         _vte_debug_print (VTE_DEBUG_GASKET,
             "Could not set environment variables when updating\n");
         return;
-	}
+    }
 
-	uuid_unparse(*uuid, uuid_str);
+    uuid_unparse(*uuid, uuid_str);
 
     /* Set the Gasket socket path from the UUID */
-	sprintf(socket_str, GASKET_SOCKET_PRINTF, gasket->priv->parent_pid, uuid_str);
+    sprintf(socket_str, GASKET_SOCKET_PRINTF, gasket->priv->parent_pid, uuid_str);
 
     /* Update the hash table with the relevant environment variables */
     g_hash_table_replace (table, g_strdup (GASKET_ENVIRONMENT_GASKET_ID), g_strdup (uuid_str));
