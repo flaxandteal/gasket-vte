@@ -4,6 +4,7 @@
 
 #include <glib-object.h>
 #include <cairo.h>
+#include <gasket/server.h>
 
 G_BEGIN_DECLS
 
@@ -32,18 +33,6 @@ typedef struct _VteGasketClass VteGasketClass;
 GType vte_gasket_get_type(void);
 
 VteGasket *vte_gasket_new (GError **error);
-VteGasket *vte_gasket_new_with_uuid(const gchar* uuid, GError **error);
-
-gboolean vte_gasket_set_uuid (VteGasket *gasket, const gchar* uuid_str);
-gboolean vte_gasket_make_socket (VteGasket *gasket);
-void vte_gasket_child_setup (VteGasket *gasket);
-void vte_gasket_update_table (VteGasket *gasket, GHashTable* table);
-void vte_gasket_launch_listen (VteGasket *gasket);
-void vte_gasket_paint_overlay (VteGasket *gasket, cairo_t *cr);
-void vte_gasket_set_invalidation_function (VteGasket *gasket, GSourceFunc function, gpointer user_data);
-void vte_gasket_set_target_extents(VteGasket *gasket, int row, int col, int row_count, int column_count, long width, long height);
-void vte_gasket_close(VteGasket *gasket);
-gpointer vte_gasket_listen (VteGasket *gasket);
 
 G_END_DECLS
 

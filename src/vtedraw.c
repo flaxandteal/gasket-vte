@@ -1052,7 +1052,7 @@ _vte_draw_paint_gasket (struct _vte_draw *draw, VteGasket* gasket)
         g_return_if_fail (VTE_IS_GASKET(gasket));
 
         if (gasket != NULL)
-                vte_gasket_paint_overlay(gasket, draw->cr);
+                gasket_server_paint_overlay(GASKET_SERVER(gasket), draw->cr);
 }
 
 static void

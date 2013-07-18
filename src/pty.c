@@ -366,7 +366,7 @@ vte_pty_child_setup (VtePty *pty)
         if (gasket != NULL) {
                 g_return_if_fail(VTE_IS_GASKET(gasket));
 
-                vte_gasket_child_setup(gasket);
+                gasket_server_child_setup(gasket);
         }
 
         g_snprintf (version, sizeof (version), "%u", VTE_VERSION_NUMERIC);
@@ -476,7 +476,7 @@ __vte_pty_merge_environ (char **envp,
 
         if (gasket != NULL) {
                 g_return_val_if_fail(VTE_IS_GASKET(gasket), FALSE);
-                vte_gasket_update_table(gasket, table);
+                gasket_server_update_table(gasket, table);
         }
 
 	array = g_ptr_array_sized_new (g_hash_table_size (table) + 1);

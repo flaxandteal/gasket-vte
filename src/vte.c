@@ -3871,7 +3871,7 @@ _vte_terminal_create_gasket(VteTerminal *terminal, GError **error)
                 return FALSE;
 
         /* Allow the gasket to poke us when it's posted some SVG */
-        vte_gasket_set_invalidation_function(gasket, _vte_terminal_invalidate_for_gasket, terminal);
+        gasket_server_set_invalidation_function(GASKET_SERVER(gasket), _vte_terminal_invalidate_for_gasket, terminal);
 
         pty = terminal->pvt->pty;
         //FIXME: this requires updating the PTY env hash table
@@ -3881,10 +3881,10 @@ _vte_terminal_create_gasket(VteTerminal *terminal, GError **error)
         terminal->pvt->gasket = gasket;
 
         /* Set up the socket */
-        vte_gasket_make_socket(gasket);
+        gasket_server_make_socket(gasket);
 
         /* Launch a listener thread for the gasket socket */
-        vte_gasket_launch_listen(gasket);
+        gasket_server_launch_listen(gasket);
 
         return TRUE;
 }
@@ -9049,7 +9049,7 @@ vte_terminal_finalize(GObject *object)
                 g_object_unref(terminal->pvt->pty);
 	}
         if (terminal->pvt->gasket != NULL) {
-                vte_gasket_close(terminal->pvt->gasket);
+                gasket_server_close(terminal->pvt->gasket);
                 g_object_unref(terminal->pvt->gasket);
         }
 
@@ -10954,7 +10954,7 @@ vte_terminal_paint_gasket(VteTerminal* terminal)
 
         if (terminal->pvt->gasket != NULL)
         {
-            vte_gasket_set_target_extents(terminal->pvt->gasket,
+            gasket_server_set_target_extents(terminal->pvt->gasket,
                                           screen->cursor_current.col,
                                           drow - delta,
                                           terminal->row_count,

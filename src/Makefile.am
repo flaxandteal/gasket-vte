@@ -251,7 +251,7 @@ interpret_CPPFLAGS = \
 	-DINTERPRET_MAIN \
 	-DVTE_API_VERSION=\"$(VTE_API_VERSION)\" \
 	$(AM_CPPFLAGS)
-interpret_CFLAGS = $(GTK_CFLAGS)
+interpret_CFLAGS = $(GTK_CFLAGS) $(GASKET_CFLAGS)
 interpret_LDADD = $(GTK_LIBS)
 
 iso2022_SOURCES = \
