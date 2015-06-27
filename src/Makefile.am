@@ -43,6 +43,7 @@ libvte_@VTE_API_MAJOR_VERSION@_@VTE_API_MINOR_VERSION@_la_SOURCES = \
 	vte/vteglobals.h \
 	vte/vtemacros.h \
 	vte/vtepty.h \
+	vte/vtegasket.h \
 	vte/vteterminal.h \
 	buffer.h \
 	caps.cc \
@@ -69,8 +70,7 @@ libvte_@VTE_API_MAJOR_VERSION@_@VTE_API_MINOR_VERSION@_la_SOURCES = \
 	vtedefines.hh \
 	vtedraw.cc \
 	vtedraw.h \
-	vtegasket.c \
-	vtegasket.h \
+	vtegasket.cc \
 	vteint.h \
 	vtepty-private.h \
 	vterowdata.cc \

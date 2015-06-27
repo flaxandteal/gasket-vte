@@ -12,7 +12,7 @@
 #include <cairo.h>
 #include <librsvg/rsvg.h>
 
-#include "vtegasket.h"
+#include "vte/vtegasket.h"
 #include "vtegasket-private.h"
 #include "debug.h"
 
@@ -158,10 +158,10 @@ vte_gasket_new(GError **error)
 {
     VteGasket *ret = NULL;
 
-    ret = g_initable_new (VTE_TYPE_GASKET,
+    ret = VTE_GASKET( g_initable_new (VTE_TYPE_GASKET,
                           NULL /* (i.e. not cancellable) */,
                           error,
-                          NULL);
+                          NULL) );
 
     return ret;
 }

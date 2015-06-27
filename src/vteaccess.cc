@@ -32,6 +32,7 @@
 #include <string.h>
 #include "debug.h"
 #include <vte/vte.h>
+#include "vte/vtegasket.h"
 #include "vteaccess.h"
 #include "vteint.h"
 #include "vte-private.h"
