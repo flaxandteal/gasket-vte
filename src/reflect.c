@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2003 Red Hat, Inc.
  *
- * This is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Library General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <config.h>
@@ -25,7 +25,7 @@
 #include <gtk/gtk.h>
 #include <atk/atk.h>
 #ifdef USE_VTE
-#include "vte.h"
+#include <vte/vte.h>
 #endif
 
 static GArray *contents = NULL;
@@ -48,11 +48,7 @@ terminal_shell_text_view(GtkWidget *widget)
 static GtkAdjustment *
 terminal_adjustment_text_view(GtkWidget *terminal)
 {
-#if GTK_CHECK_VERSION (2, 21, 6)
 	return gtk_text_view_get_vadjustment(GTK_TEXT_VIEW(terminal));
-#else
-	return GTK_TEXT_VIEW(terminal)->vadjustment;
-#endif
 }
 #endif
 #ifdef USE_VTE
@@ -71,19 +67,19 @@ terminal_init_vte(GtkWidget **terminal)
 static void
 terminal_shell_vte(GtkWidget *terminal)
 {
-	vte_terminal_fork_command(VTE_TERMINAL(terminal),
-				  getenv("SHELL") ? getenv("SHELL") : "/bin/sh",
-				  NULL,
-				  NULL,
-				  g_get_home_dir() ? g_get_home_dir() : NULL,
-				  FALSE,
-				  FALSE,
-				  FALSE);
-}
-static GtkAdjustment *
-terminal_adjustment_vte(GtkWidget *terminal)
-{
-	return (VTE_TERMINAL(terminal))->adjustment;
+        char *argv[2];
+
+        argv[0] = vte_get_user_shell ();
+        argv[1] = NULL;
+	vte_terminal_spawn_sync(VTE_TERMINAL(terminal),
+                                       VTE_PTY_DEFAULT,
+                                       g_get_home_dir() ? g_get_home_dir() : NULL,
+                                       argv,
+                                       NULL,
+                                       0, NULL, NULL,
+                                       NULL,
+                                       NULL,
+                                       NULL);
 }
 #endif
 
@@ -237,7 +233,7 @@ terminal_adjustment(GtkWidget *terminal)
 	return terminal_adjustment_text_view(terminal);
 #endif
 #ifdef USE_VTE
-	return terminal_adjustment_vte(terminal);
+	return gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(terminal));
 #endif
 	g_assert_not_reached();
 }
@@ -284,11 +280,7 @@ main(int argc, char **argv)
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(sw), label);
 	gtk_widget_show(label);
 
-#if GTK_CHECK_VERSION (2, 91, 2)
 	pane = gtk_paned_new (GTK_ORIENTATION_VERTICAL);
-#else
-	pane = gtk_vpaned_new();
-#endif
 	gtk_paned_pack1(GTK_PANED(pane), tophalf, TRUE, FALSE);
 	gtk_paned_pack2(GTK_PANED(pane), sw, TRUE, FALSE);
 	gtk_widget_show(tophalf);

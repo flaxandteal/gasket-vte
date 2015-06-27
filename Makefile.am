@@ -1,53 +1,38 @@
-ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I .
+NULL =
 
-SUBDIRS = src termcaps po doc perf
+ACLOCAL_AMFLAGS = -I m4
+
+SUBDIRS = src po doc perf
 
 EXTRA_DIST = \
 	MAINTAINERS \
 	HACKING \
 	autogen.sh \
-	ChangeLog.pre-git
+	ChangeLog.pre-git \
+	$(NULL)
 
 DISTCLEANFILES =
-
-if BUILD_GNOME_PTY_HELPER
-SUBDIRS += gnome-pty-helper
-endif
 
 if ENABLE_GLADE_CATALOGUE
 SUBDIRS += glade
 endif
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = vte$(VTE_PC_VERSION).pc
+pkgconfig_DATA = vte-$(VTE_API_VERSION).pc
 
 DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \
-	--disable-introspection \
+	--enable-introspection \
+	--enable-vala \
+	--enable-test-application \
 	--disable-silent-rules \
 	--with-gtk=3.0
 
 MAINTAINERCLEANFILES = \
-		ChangeLog \
-		$(srcdir)/INSTALL \
-		$(srcdir)/aclocal.m4 \
-		$(srcdir)/autoscan.log \
-		$(srcdir)/compile \
-		$(srcdir)/config.guess \
-		$(srcdir)/config.h.in \
-		$(srcdir)/config.sub \
-		$(srcdir)/configure \
-		$(srcdir)/configure.scan \
-		$(srcdir)/depcomp \
-		$(srcdir)/install-sh \
-		$(srcdir)/ltmain.sh \
-		$(srcdir)/missing \
-		$(srcdir)/mkinstalldirs \
-		$(srcdir)/omf.make \
-		$(srcdir)/xmldocs.make \
-		$(srcdir)/gtk-doc.make \
-		$(srcdir)/po/Makefile.in.in \
-		`find "$(srcdir)" -type f -name Makefile.in -print`
+	$(GITIGNORE_MAINTAINERCLEANFILES_TOPLEVEL) \
+	$(GITIGNORE_MAINTAINERCLEANFILES_MAKEFILE_IN) \
+	$(GITIGNORE_MAINTAINERCLEANFILES_M4_LIBTOOL) \
+	$(NULL)
 
 # Build ChangeLog from GIT  history
 ChangeLog:

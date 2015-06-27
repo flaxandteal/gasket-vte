@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2002 Red Hat, Inc.
  *
- * This is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Library General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 /* The interfaces in this file are subject to change at any time. */
@@ -24,6 +24,15 @@
 #include <config.h>
 
 #include <glib.h>
+
+#ifndef VTE_COMPILATION
+#define _vte_debug_flags _vte_external_debug_flags
+#define _vte_debug_init  _vte_external_debug_init
+#define _vte_debug_on    _vte_external_debug_on
+#if !defined(__GNUC__) || !G_HAVE_GNUC_VARARGS
+#define _vte_debug_print _vte_external_debug_print
+#endif
+#endif
 
 G_BEGIN_DECLS
 
@@ -41,7 +50,7 @@ typedef enum {
 	VTE_DEBUG_CURSOR	= 1 << 10,
 	VTE_DEBUG_KEYBOARD	= 1 << 11,
 	VTE_DEBUG_LIFECYCLE	= 1 << 12,
-	VTE_DEBUG_TRIE		= 1 << 13,
+	VTE_DEBUG_MATCHER	= 1 << 13,
 	VTE_DEBUG_WORK		= 1 << 14,
 	VTE_DEBUG_CELLS		= 1 << 15,
 	VTE_DEBUG_TIMEOUT	= 1 << 16,
@@ -50,17 +59,19 @@ typedef enum {
 	VTE_DEBUG_ADJ		= 1 << 19,
 	VTE_DEBUG_PANGOCAIRO    = 1 << 20,
 	VTE_DEBUG_WIDGET_SIZE   = 1 << 21,
-        VTE_DEBUG_BG            = 1 << 22,
-        VTE_DEBUG_GASKET        = 1 << 23
+	VTE_DEBUG_STYLE         = 1 << 22,
+	VTE_DEBUG_RESIZE        = 1 << 23,
+	VTE_DEBUG_GASKET        = 1 << 24
 } VteDebugFlags;
 
 void _vte_debug_init(void);
+const char *_vte_debug_sequence_to_string(const char *str);
 
-extern VteDebugFlags _vte_debug_flags;
-static inline gboolean _vte_debug_on(VteDebugFlags flags) G_GNUC_CONST G_GNUC_UNUSED;
+extern guint _vte_debug_flags;
+static inline gboolean _vte_debug_on(guint flags) G_GNUC_CONST G_GNUC_UNUSED;
 
 static inline gboolean
-_vte_debug_on(VteDebugFlags flags)
+_vte_debug_on(guint flags)
 {
 	return (_vte_debug_flags & flags) == flags;
 }

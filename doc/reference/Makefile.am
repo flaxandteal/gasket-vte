@@ -1,3 +1,5 @@
+NULL =
+
 # We require automake 1.10 for $(abs_builddir)
 AUTOMAKE_OPTIONS = 1.10
 
@@ -21,14 +23,17 @@ DOC_MAIN_SGML_FILE = $(DOC_MODULE)-docs.xml
 # e.g. DOC_SOURCE_DIR=../../../gtk
 DOC_SOURCE_DIR = \
 	$(top_srcdir)/src \
-	$(top_builddir)/src
+	$(top_srcdir)/src/vte \
+	$(top_builddir)/src \
+	$(top_builddir)/src/vte \
+	$(NULL)
 
 # Extra options to pass to gtkdoc-scangobj. Not normally needed.
 SCANGOBJ_OPTIONS =
 
 # Extra options to supply to gtkdoc-scan.
 # e.g. SCAN_OPTIONS=--deprecated-guards="GTK_DISABLE_DEPRECATED"
-SCAN_OPTIONS = --deprecated-guards="VTE_DISABLE_DEPRECATED"
+SCAN_OPTIONS = --deprecated-guards="VTE_DISABLE_DEPRECATED" --ignore-decorators='_VTE_GNUC_NONNULL\s*\([^)]*\)'
 
 # Extra options to supply to gtkdoc-mkdb.
 # e.g. MKDB_OPTIONS=--sgml-mode --output-format=xml
@@ -56,10 +61,14 @@ FIXXREF_OPTIONS = \
 # e.g. CFILE_GLOB=$(top_srcdir)/gtk/*.c
 HFILE_GLOB = \
 	$(top_srcdir)/src/*.h \
-	$(top_builddir)/src/*.h
+	$(top_srcdir)/src/vte/*.h \
+	$(top_builddir)/src/*.h \
+	$(top_builddir)/src/vte/*.h \
+	$(NULL)
 
 CFILE_GLOB = \
-	$(top_srcdir)/src/*.c
+	$(top_srcdir)/src/*.c \
+	$(top_srcdir)/src/*.cc
 
 # Extra header to include when scanning, which are not under DOC_SOURCE_DIR
 # e.g. EXTRA_HFILES=$(top_srcdir}/contrib/extra.h
@@ -81,12 +90,10 @@ IGNORE_HFILES = \
 	stamp-vtetypebuiltins.h \
 	table.h \
 	trie.h \
-	vtebg.h \
 	vteconv.h \
 	vtedraw.h \
 	vteint.h \
 	vte-private.h \
-	vteregex.h \
 	vterowdata.h \
 	vteseq-list.h \
 	vtestream-base.h \
@@ -104,7 +111,7 @@ HTML_IMAGES =
 # Extra SGML files that are included by $(DOC_MAIN_SGML_FILE).
 # e.g. content_files=running.sgml building.sgml changes-2.0.sgml
 content_files = \
- 	version.xml
+	version.xml
 
 # SGML files where gtk-doc abbrevations (#GtkWidget) are expanded
 # These files must be listed here *and* in content_files
@@ -119,13 +126,15 @@ expand_content_files =
 GTKDOC_CFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/vte \
 	-I$(top_builddir) \
 	-I$(top_builddir)/src \
+	-I$(top_builddir)/src/vte \
 	-DVTE_COMPILATION \
 	$(VTE_CFLAGS)
 
 GTKDOC_LIBS = \
-	$(top_builddir)/src/libvte@VTE_LIBRARY_SUFFIX_U@.la \
+	$(top_builddir)/src/libvte-@VTE_API_VERSION@.la \
 	$(VTE_LIBS)
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.

@@ -1,10 +1,11 @@
 dnl Macros to check the presence of generic (non-typed) symbols.
 dnl Copyright (c) 2006-2008 Diego Pettenò <flameeyes@gmail.com>
 dnl Copyright (c) 2006-2008 xine project
+dnl Copyright (c) 2012 Lucas De Marchi <lucas.de.marchi@gmail.com>
 dnl
 dnl This program is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
-dnl the Free Software Foundation; either version 3, or (at your option)
+dnl the Free Software Foundation; either version 2, or (at your option)
 dnl any later version.
 dnl
 dnl This program is distributed in the hope that it will be useful,
@@ -32,52 +33,29 @@ dnl distribute a modified version of the Autoconf Macro, you may extend
 dnl this special exception to the GPL to apply to your modified version as
 dnl well.
 
-dnl Check if the flag is supported by compiler
-dnl CC_CHECK_CFLAGS_SILENT([FLAG], [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
+dnl Check if FLAG in ENV-VAR is supported by compiler and append it
+dnl to WHERE-TO-APPEND variable. Note that we invert -Wno-* checks to
+dnl -W* as gcc cannot test for negated warnings.
+dnl CC_CHECK_FLAG_APPEND([WHERE-TO-APPEND], [ENV-VAR], [FLAG])
 
-AC_DEFUN([CC_CHECK_CFLAGS_SILENT], [
-  AC_CACHE_VAL(AS_TR_SH([cc_cv_cflags_$1]),
-    [ac_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $1"
-     AC_COMPILE_IFELSE([AC_LANG_SOURCE([int a;])],
-       [eval "AS_TR_SH([cc_cv_cflags_$1])='yes'"],
-       [eval "AS_TR_SH([cc_cv_cflags_$1])='no'"])
-     CFLAGS="$ac_save_CFLAGS"
-    ])
+AC_DEFUN([CC_CHECK_FLAG_APPEND], [
+  AC_CACHE_CHECK([if $_AC_CC supports flag $3 in envvar $2],
+                 AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_$2_$3]),
+          [eval "AS_TR_SH([cc_save_$2])='${$2}'"
+           eval "AS_TR_SH([$2])='-Werror `echo "$3" | sed 's/^-Wno-/-W/'`'"
+           AC_LINK_IFELSE([AC_LANG_SOURCE([int main(void) { return 0; } ])],
+                          [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_$2_$3])='yes'"],
+                          [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_$2_$3])='no'"])
+           eval "AS_TR_SH([$2])='$cc_save_$2'"])
 
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_$1])[ = xyes],
-    [$2], [$3])
+  AS_IF([eval test x$]AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_$2_$3])[ = xyes],
+        [eval "$1='${$1} $3'"])
 ])
 
-dnl Check if the flag is supported by compiler (cacheable)
-dnl CC_CHECK_CFLAGS([FLAG], [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
-
-AC_DEFUN([CC_CHECK_CFLAGS], [
-  AC_CACHE_CHECK([if $CC supports $1 flag],
-    AS_TR_SH([cc_cv_cflags_$1]),
-    CC_CHECK_CFLAGS_SILENT([$1]) dnl Don't execute actions here!
-  )
-
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_$1])[ = xyes],
-    [$2], [$3])
-])
-
-dnl CC_CHECK_CFLAG_APPEND(FLAG, [action-if-found], [action-if-not-found])
-dnl Check for CFLAG and appends them to CFLAGS if supported
-AC_DEFUN([CC_CHECK_CFLAG_APPEND], [
-  AC_CACHE_CHECK([if $CC supports $1 flag],
-    AS_TR_SH([cc_cv_cflags_$1]),
-    CC_CHECK_CFLAGS_SILENT([$1]) dnl Don't execute actions here!
-  )
-
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_$1])[ = xyes],
-    [CFLAGS="$CFLAGS $1"; DEBUG_CFLAGS="$DEBUG_CFLAGS $1"; $2], [$3])
-])
-
-dnl CC_CHECK_CFLAGS_APPEND([FLAG1 FLAG2], [action-if-found], [action-if-not])
-AC_DEFUN([CC_CHECK_CFLAGS_APPEND], [
-  for flag in $1; do
-    CC_CHECK_CFLAG_APPEND($flag, [$2], [$3])
+dnl CC_CHECK_FLAGS_APPEND([WHERE-TO-APPEND], [ENV-VAR], [FLAG1 FLAG2])
+AC_DEFUN([CC_CHECK_FLAGS_APPEND], [
+  for flag in $3; do
+    CC_CHECK_FLAG_APPEND($1, $2, $flag)
   done
 ])
 
@@ -85,19 +63,17 @@ dnl Check if the flag is supported by linker (cacheable)
 dnl CC_CHECK_LDFLAGS([FLAG], [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND])
 
 AC_DEFUN([CC_CHECK_LDFLAGS], [
-  AC_CACHE_CHECK([if $CC supports $1 flag],
-    AS_TR_SH([cc_cv_ldflags_$1]),
+  AC_CACHE_CHECK([if $_AC_CC supports $1 flag],
+    AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_ldflags_$1]),
     [ac_save_LDFLAGS="$LDFLAGS"
      LDFLAGS="$LDFLAGS $1"
-     AC_LANG_PUSH([C])
      AC_LINK_IFELSE([AC_LANG_SOURCE([int main() { return 1; }])],
-       [eval "AS_TR_SH([cc_cv_ldflags_$1])='yes'"],
-       [eval "AS_TR_SH([cc_cv_ldflags_$1])="])
-     AC_LANG_POP([C])
+       [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_ldflags_$1])='yes'"],
+       [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_ldflags_$1])="])
      LDFLAGS="$ac_save_LDFLAGS"
     ])
 
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_ldflags_$1])[ = xyes],
+  AS_IF([eval test x$]AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_ldflags_$1])[ = xyes],
     [$2], [$3])
 ])
 
@@ -114,13 +90,13 @@ AC_DEFUN([CC_NOUNDEFINED], [
      *-freebsd* | *-openbsd*) ;;
      *)
         dnl First of all check for the --no-undefined variant of GNU ld. This allows
-        dnl for a much more readable commandline, so that people can understand what
+        dnl for a much more readable command line, so that people can understand what
         dnl it does without going to look for what the heck -z defs does.
         for possible_flags in "-Wl,--no-undefined" "-Wl,-z,defs"; do
-          CC_CHECK_LDFLAGS([$possible_flags], [LDFLAGS_NOUNDEFINED="$possible_flags"])
-	  break
+           CC_CHECK_LDFLAGS([$possible_flags], [LDFLAGS_NOUNDEFINED="$possible_flags"])
+           break
         done
-	;;
+     ;;
   esac
 
   AC_SUBST([LDFLAGS_NOUNDEFINED])
@@ -136,28 +112,26 @@ dnl an equivalent flag:
 dnl  - Sun Studio compiler supports -errwarn=%all
 AC_DEFUN([CC_CHECK_WERROR], [
   AC_CACHE_CHECK(
-    [for $CC way to treat warnings as errors],
-    [cc_cv_werror],
-    [CC_CHECK_CFLAGS_SILENT([-Werror], [cc_cv_werror=-Werror],
-      [CC_CHECK_CFLAGS_SILENT([-errwarn=%all], [cc_cv_werror=-errwarn=%all])])
+    [for $_AC_CC way to treat warnings as errors],
+    [cc_cv_[]_AC_LANG_ABBREV[]_werror],
+    [CC_CHECK_CFLAGS_SILENT([-Werror], [cc_cv_[]_AC_LANG_ABBREV[]_werror=-Werror],
+      [CC_CHECK_CFLAGS_SILENT([-errwarn=%all], [cc_cv_[]_AC_LANG_ABBREV[]_werror=-errwarn=%all])])
     ])
 ])
 
 AC_DEFUN([CC_CHECK_ATTRIBUTE], [
   AC_REQUIRE([CC_CHECK_WERROR])
-  AC_CACHE_CHECK([if $CC supports __attribute__(( ifelse([$2], , [$1], [$2]) ))],
-    AS_TR_SH([cc_cv_attribute_$1]),
+  AC_CACHE_CHECK([if $_AC_CC supports __attribute__(( ifelse([$2], , [$1], [$2]) ))],
+    AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_attribute_$1]),
     [ac_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $cc_cv_werror"
-     AC_LANG_PUSH([C])
+     CFLAGS="$CFLAGS $cc_cv_[]_AC_LANG_ABBREV[]_werror"
      AC_COMPILE_IFELSE([AC_LANG_SOURCE([$3])],
-       [eval "AS_TR_SH([cc_cv_attribute_$1])='yes'"],
-       [eval "AS_TR_SH([cc_cv_attribute_$1])='no'"])
-     AC_LANG_POP([C])
+       [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_attribute_$1])='yes'"],
+       [eval "AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_attribute_$1])='no'"])
      CFLAGS="$ac_save_CFLAGS"
     ])
 
-  AS_IF([eval test x$]AS_TR_SH([cc_cv_attribute_$1])[ = xyes],
+  AS_IF([eval test x$]AS_TR_SH([cc_cv_[]_AC_LANG_ABBREV[]_attribute_$1])[ = xyes],
     [AC_DEFINE(
        AS_TR_CPP([SUPPORT_ATTRIBUTE_$1]), 1,
          [Define this if the compiler supports __attribute__(( ifelse([$2], , [$1], [$2]) ))]
@@ -253,16 +227,16 @@ AC_DEFUN([CC_ATTRIBUTE_CONST], [
 
 AC_DEFUN([CC_FLAG_VISIBILITY], [
   AC_REQUIRE([CC_CHECK_WERROR])
-  AC_CACHE_CHECK([if $CC supports -fvisibility=hidden],
-    [cc_cv_flag_visibility],
+  AC_CACHE_CHECK([if $_AC_CC supports -fvisibility=hidden],
+    [cc_cv_[]_AC_LANG_ABBREV[]_flag_visibility],
     [cc_flag_visibility_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $cc_cv_werror"
+     CFLAGS="$CFLAGS $cc_cv_[]_AC_LANG_ABBREV[]_werror"
      CC_CHECK_CFLAGS_SILENT([-fvisibility=hidden],
-	cc_cv_flag_visibility='yes',
-	cc_cv_flag_visibility='no')
+     cc_cv_[]_AC_LANG_ABBREV[]_flag_visibility='yes',
+     cc_cv_[]_AC_LANG_ABBREV[]_flag_visibility='no')
      CFLAGS="$cc_flag_visibility_save_CFLAGS"])
 
-  AS_IF([test "x$cc_cv_flag_visibility" = "xyes"],
+  AS_IF([test "x$cc_cv_[]_AC_LANG_ABBREV[]_flag_visibility" = "xyes"],
     [AC_DEFINE([SUPPORT_FLAG_VISIBILITY], 1,
        [Define this if the compiler supports the -fvisibility flag])
      $1],
@@ -272,22 +246,20 @@ AC_DEFUN([CC_FLAG_VISIBILITY], [
 AC_DEFUN([CC_FUNC_EXPECT], [
   AC_REQUIRE([CC_CHECK_WERROR])
   AC_CACHE_CHECK([if compiler has __builtin_expect function],
-    [cc_cv_func_expect],
+    [cc_cv_[]_AC_LANG_ABBREV[]_func_expect],
     [ac_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $cc_cv_werror"
-     AC_LANG_PUSH([C])
+     CFLAGS="$CFLAGS $cc_cv_[]_AC_LANG_ABBREV[]_werror"
      AC_COMPILE_IFELSE([AC_LANG_SOURCE(
        [int some_function() {
         int a = 3;
         return (int)__builtin_expect(a, 3);
-	}])],
-       [cc_cv_func_expect=yes],
-       [cc_cv_func_expect=no])
-     AC_LANG_POP([C])
+     }])],
+       [cc_cv_[]_AC_LANG_ABBREV[]_func_expect=yes],
+       [cc_cv_[]_AC_LANG_ABBREV[]_func_expect=no])
      CFLAGS="$ac_save_CFLAGS"
     ])
 
-  AS_IF([test "x$cc_cv_func_expect" = "xyes"],
+  AS_IF([test "x$cc_cv_[]_AC_LANG_ABBREV[]_func_expect" = "xyes"],
     [AC_DEFINE([SUPPORT__BUILTIN_EXPECT], 1,
      [Define this if the compiler supports __builtin_expect() function])
      $1],
@@ -297,23 +269,21 @@ AC_DEFUN([CC_FUNC_EXPECT], [
 AC_DEFUN([CC_ATTRIBUTE_ALIGNED], [
   AC_REQUIRE([CC_CHECK_WERROR])
   AC_CACHE_CHECK([highest __attribute__ ((aligned ())) supported],
-    [cc_cv_attribute_aligned],
+    [cc_cv_[]_AC_LANG_ABBREV[]_attribute_aligned],
     [ac_save_CFLAGS="$CFLAGS"
-     CFLAGS="$CFLAGS $cc_cv_werror"
-     AC_LANG_PUSH([C])
+     CFLAGS="$CFLAGS $cc_cv_[]_AC_LANG_ABBREV[]_werror"
      for cc_attribute_align_try in 64 32 16 8 4 2; do
         AC_COMPILE_IFELSE([AC_LANG_SOURCE([
           int main() {
             static char c __attribute__ ((aligned($cc_attribute_align_try))) = 0;
             return c;
-          }])], [cc_cv_attribute_aligned=$cc_attribute_align_try; break])
+          }])], [cc_cv_[]_AC_LANG_ABBREV[]_attribute_aligned=$cc_attribute_align_try; break])
      done
-     AC_LANG_POP([C])
      CFLAGS="$ac_save_CFLAGS"
   ])
 
-  if test "x$cc_cv_attribute_aligned" != "x"; then
-     AC_DEFINE_UNQUOTED([ATTRIBUTE_ALIGNED_MAX], [$cc_cv_attribute_aligned],
+  if test "x$cc_cv_[]_AC_LANG_ABBREV[]_attribute_aligned" != "x"; then
+     AC_DEFINE_UNQUOTED([ATTRIBUTE_ALIGNED_MAX], [$cc_cv_[]_AC_LANG_ABBREV[]_attribute_aligned],
        [Define the highest alignment supported])
   fi
 ])

@@ -1,3 +1,76 @@
+0.37.0
+======
+* New API: vte-2.91
+* Many improvements and bug fixes
+* Translation updates
+
+0.36.0
+======
+* Build fixes (#726604)
+* Docs updates
+
+0.35.90
+=======
+* prompt: Use precmd hook on zsh (#724982)
+* Fix many compiler warnings
+* Remove obsolete gtk+-2.0 conditional code
+* Support OSC 19 and 119 sequences (#725974)
+* Also pass Ctrl-F1 to applications (#726438)
+* Nicer box drawing characters (#709556)
+
+0.35.2
+======
+* Colour palette handling fixes (#640040)
+* Add support for OSC 104 (reset colors) (#640040)
+* Add support for OSC 1?1[017] (fg, bg, highlight colors) (#640040)
+* Add support for OSC 112 (reset cursor color) (#640040)
+* Make OSC response use the same terminator as the query (#722446)
+* Maintain selection when rewrapping (#722635)
+* Fix selection with widget padding adjustment (#722873)
+
+0.35.1
+======
+* Support for 16 million colors (#704449)
+* Fix Home/End and some other keys (#600659, #643233, #710349)
+* Add API to enable/disable rewrap on resize (#336238)
+* Fix a longstanding performance regression (#721944)
+* Bug fixes (#586950, #619891, #672210, #685759, #691972, #720977, #721522)
+
+0.35.0
+======
+* Build fixes
+* Portability fixes (#710165)
+* Rewrap contents upon window resize (#336238)
+* Bug fixes (#4993, #13299, #542087, #686097, #693013, #705985, #709692,
+  #709584, #709930, #710426, #710481, #710483, #710484, #710488, #710486)
+
+Many thanks to Egmont Koblinger who contributed most of these bug fixes!
+
+0.34.9
+======
+* Lines disappear after positioning back the cursor (#708496)
+* Garbage displayed after resizing whilst using an alternate screen (#415277)
+* vte uses too many file descriptors (part of #646098)
+* Incorrect scrollbar position after the "less" command (#676075)
+* Add support for DEC 1007 to set the alternate scroll mode (#518405, #709060)
+* Use O_TMPFILE when available (#704705)
+* Improvements to scrollback storage (#637275) 
+* Aborts on assertion (#676075)
+* zsh - lots of blank space upon resizing VTE based terminals (#708213)
+* Misc fixes
+
+0.34.8
+======
+- Build fixes
+- Fix crash on pathological fonts (#708196)
+- Use correct character attributes around graphic characters (part of #707221)
+- Make extended fore/background colour handling more xterm-like (#616436)
+
+0.34.7
+======
+- Honour gtk-enable-primary-paste setting
+- Redraw when changing colours (#702415)
+
 0.34.6
 ======
 - vte.sh bugfix

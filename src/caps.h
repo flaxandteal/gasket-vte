@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2001,2002 Red Hat, Inc.
  *
- * This is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Library General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 /* The interfaces in this file are subject to change at any time. */
@@ -35,24 +35,7 @@ G_BEGIN_DECLS
 #define _VTE_CAP_SS2 _VTE_CAP_ESC "N"	/* Single-shift to G2 */
 #define _VTE_CAP_SS3 _VTE_CAP_ESC "O"	/* Single-shift to G3 */
 
-/* A NULL-terminated list of capability strings which have string values,
- * which means they're either key sequences or commands. */
-struct _vte_capability_quark {
-	const char capability[4];
-	gboolean key;
-	GQuark quark;
-};
-struct _vte_capability_string {
-	const char *code;
-	const char *value;
-	GQuark quark;
-};
-
-/* The known capability strings in termcap entries, terminated by NULLs. */
-extern struct _vte_capability_quark _vte_terminal_capability_strings[];
-
-/* The xterm-specific terminal control strings, terminated by NULLs. */
-extern struct _vte_capability_string _vte_xterm_capability_strings[];
+extern const char _vte_xterm_capability_strings[];
 
 G_END_DECLS
 

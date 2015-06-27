@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2003 Red Hat, Inc.
  *
- * This is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Library General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 /* The interfaces in this file are subject to change at any time. */
@@ -21,14 +21,10 @@
 #ifndef vte_vtedraw_h_included
 #define vte_vtedraw_h_included
 
-
 #include <glib.h>
 #include <gtk/gtk.h>
 #include <cairo.h>
-#include "vtebg.h"
-#include "vte.h"
 #include "vteunistr.h"
-#include "vte-gtk-compat.h"
 
 G_BEGIN_DECLS
 
@@ -68,37 +64,23 @@ struct _vte_draw_text_request {
 guint _vte_draw_get_style(gboolean bold, gboolean italic);
 
 /* Create and destroy a draw structure. */
-struct _vte_draw *_vte_draw_new(GtkWidget *widget);
+struct _vte_draw *_vte_draw_new(void);
 void _vte_draw_free(struct _vte_draw *draw);
 
 cairo_t *_vte_draw_get_context (struct _vte_draw *draw);
 
-/* Begin and end a drawing operation.  If anything is buffered locally, it is
-   flushed to the window system when _end() is called. */
-void _vte_draw_start(struct _vte_draw *draw);
-void _vte_draw_end(struct _vte_draw *draw);
+void _vte_draw_set_cairo(struct _vte_draw *draw,
+                         cairo_t *cr);
 
 void _vte_draw_set_background_solid(struct _vte_draw *draw,
-				    double red,
-				    double green,
-				    double blue,
-				    double opacity);
-void _vte_draw_set_background_image(struct _vte_draw *draw,
-				    VteBgSourceType type,
-				    GdkPixbuf *pixbuf,
-				    const char *file,
-				    const PangoColor *color,
-				    double saturation);
-void _vte_draw_set_background_scroll(struct _vte_draw *draw,
-				     gint x, gint y);
+                                    const GdkRGBA *color);
 
-void _vte_draw_clip(struct _vte_draw *draw, GdkRegion *region);
 void _vte_draw_clear(struct _vte_draw *draw,
 		     gint x, gint y, gint width, gint height);
 
 void _vte_draw_set_text_font(struct _vte_draw *draw,
-			     const PangoFontDescription *fontdesc,
-			     VteTerminalAntiAlias anti_alias);
+                             GtkWidget *widget,
+			     const PangoFontDescription *fontdesc);
 void _vte_draw_get_text_metrics(struct _vte_draw *draw,
 				gint *width, gint *height, gint *ascent);
 int _vte_draw_get_char_width(struct _vte_draw *draw, vteunistr c, int columns,

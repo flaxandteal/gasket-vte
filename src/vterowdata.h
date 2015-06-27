@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2002 Red Hat, Inc.
  *
- * This is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Library General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 /* The interfaces in this file are subject to change at any time. */
@@ -22,18 +22,20 @@
 #define vterowdata_h_included
 
 #include "vteunistr.h"
+#include "vtemacros.h"
 
 G_BEGIN_DECLS
 
+#define VTE_TAB_WIDTH_BITS		4  /* Has to be able to store the value of 8. */
+#define VTE_TAB_WIDTH_MAX		((1 << VTE_TAB_WIDTH_BITS) - 1)
 
-#define VTE_DEF_FG			256
-#define VTE_DEF_BG			257
+#define VTE_DEFAULT_FG			256
+#define VTE_DEFAULT_BG			257
 #define VTE_BOLD_FG			258
-#define VTE_DIM_FG			259
-#define VTE_DEF_HL                      260
-#define VTE_CUR_BG			261
+#define VTE_HIGHLIGHT_FG		259
+#define VTE_HIGHLIGHT_BG		260
+#define VTE_CURSOR_BG			261
 #define VTE_PALETTE_SIZE		262
-
 
 /*
  * VteCellAttr: A single cell style attributes
@@ -45,32 +47,32 @@ G_BEGIN_DECLS
  */
 
 typedef struct _VteCellAttr {
-	guint32 fragment: 1;	/* A continuation cell. */
-	guint32 columns: 4;	/* Number of visible columns
-				   (as determined by g_unicode_iswide(c)).
-				   Also abused for tabs; bug 353610
-				   Keep at least 4 for tabs to work
-				   */
-	guint32 bold: 1;
-	guint32 italic: 1;
-	guint32 fore: 9;	/* Index into color palette */
-	guint32 back: 9;	/* Index into color palette. */
+	guint64 fragment: 1;	/* A continuation cell. */
+	guint64 columns: VTE_TAB_WIDTH_BITS;	/* Number of visible columns
+						   (as determined by g_unicode_iswide(c)).
+						   Also abused for tabs; bug 353610
+						   */
+	guint64 bold: 1;
+	guint64 italic: 1;
+	guint64 fore: 25;	/* Index into color palette, or direct RGB, */
+	/* 4-byte boundary */
+	guint64 back: 25;	/* see vte-private.h */
 
-	guint32 standout: 1;
-	guint32 underline: 1;
-	guint32 strikethrough: 1;
+	guint64 underline: 1;
+	guint64 strikethrough: 1;
 
-	guint32 reverse: 1;
-	guint32 blink: 1;
-	guint32 half: 1;
+	guint64 reverse: 1;
+	guint64 blink: 1;
+	guint64 dim: 1;		/* also known as faint, half intensity etc. */
 
-	guint32 invisible: 1;
+	guint64 invisible: 1;
+        /* 1 bit unused */
 } VteCellAttr;
-G_STATIC_ASSERT (sizeof (VteCellAttr) == 4);
+G_STATIC_ASSERT (sizeof (VteCellAttr) == 8);
 
 typedef union _VteIntCellAttr {
 	VteCellAttr s;
-	guint32 i;
+	guint64 i;
 } VteIntCellAttr;
 G_STATIC_ASSERT (sizeof (VteCellAttr) == sizeof (VteIntCellAttr));
 
@@ -78,17 +80,17 @@ G_STATIC_ASSERT (sizeof (VteCellAttr) == sizeof (VteIntCellAttr));
  * VteCell: A single cell's data
  */
 
-typedef struct _VteCell {
+typedef struct _VTE_GNUC_PACKED _VteCell {
 	vteunistr c;
 	VteCellAttr attr;
 } VteCell;
-G_STATIC_ASSERT (sizeof (VteCell) == 8);
+G_STATIC_ASSERT (sizeof (VteCell) == 12);
 
 typedef union _VteIntCell {
 	VteCell cell;
-	struct {
+	struct _VTE_GNUC_PACKED {
 		guint32 c;
-		guint32 attr;
+		guint64 attr;
 	} i;
 } VteIntCell;
 G_STATIC_ASSERT (sizeof (VteCell) == sizeof (VteIntCell));
@@ -101,10 +103,9 @@ static const VteIntCell basic_cell = {
 			1, /* columns */
 			0, /* bold */
 			0, /* italic */
-			VTE_DEF_FG, /* fore */
-			VTE_DEF_BG, /* back */
+			VTE_DEFAULT_FG, /* fore */
+			VTE_DEFAULT_BG, /* back */
 
-			0, /* standout */
 			0, /* underline */
 			0, /* strikethrough */
 

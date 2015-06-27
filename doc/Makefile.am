@@ -1,11 +1,13 @@
+NULL =
+
 SUBDIRS = reference openi18n
 
-EXTRA_DIST = ctlseqs.ms readme.txt utmpwtmp.txt boxes.txt
-
-ctlseqs.ps: ctlseqs.ms
-	$(AM_V_GEN) tbl $^ | groff -ms > $@
-
-ctlseqs.txt: ctlseqs.ms
-	$(AM_V_GEN) tbl $^ | nroff -c -ms > $@
+EXTRA_DIST = \
+	ambiguous.txt \
+        boxes.txt \
+	readme.txt \
+        rewrap.txt \
+	utmpwtmp.txt \
+	$(NULL)
 
 -include $(top_srcdir)/git.mk
