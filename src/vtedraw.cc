@@ -24,6 +24,7 @@
 #include <gtk/gtk.h>
 #include <glib.h>
 #include "debug.h"
+#include "vte/vtegasket.h"
 #include "vtedraw.h"
 #include "vte-private.h"
 
@@ -939,7 +940,7 @@ _vte_draw_set_source_color_alpha (struct _vte_draw *draw,
 void
 _vte_draw_paint_gasket (struct _vte_draw *draw, VteGasket* gasket)
 {
-        g_return_if_fail (draw->started);
+        g_assert(draw->cr);
 
         g_return_if_fail (VTE_IS_GASKET(gasket));
 

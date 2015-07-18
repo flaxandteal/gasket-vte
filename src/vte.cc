@@ -30,6 +30,7 @@
 #include <math.h>
 
 #include <vte/vte.h>
+#include "vte/vtegasket.h"
 #include "vte-private.h"
 
 #ifdef HAVE_WCHAR_H
@@ -55,7 +56,6 @@
 #include "vteint.h"
 #include "vtepty.h"
 #include "vtepty-private.h"
-#include "vtegasket.h"
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
@@ -3602,10 +3602,10 @@ _vte_terminal_create_gasket(VteTerminal *terminal, GError **error)
         terminal->pvt->gasket = gasket;
 
         /* Set up the socket */
-        gasket_server_make_socket(gasket);
+        gasket_server_make_socket(GASKET_SERVER(gasket));
 
         /* Launch a listener thread for the gasket socket */
-        gasket_server_launch_listen(gasket);
+        gasket_server_launch_listen(GASKET_SERVER(gasket));
 
         return TRUE;
 }
@@ -8942,7 +8942,7 @@ vte_terminal_finalize(GObject *object)
                 g_object_unref(terminal->pvt->pty);
 	}
         if (terminal->pvt->gasket != NULL) {
-                gasket_server_close(terminal->pvt->gasket);
+                gasket_server_close(GASKET_SERVER(terminal->pvt->gasket));
                 g_object_unref(terminal->pvt->gasket);
         }
 
@@ -9990,17 +9990,18 @@ vte_terminal_paint_gasket(VteTerminal* terminal)
 {
 	VteScreen* screen = terminal->pvt->screen;
 	int delta = screen->scroll_delta;
-	int drow = screen->cursor_current.row;
+	glong drow, dcol;
+        vte_terminal_get_cursor_position(terminal, &drow, &dcol);
 
         if (terminal->pvt->gasket != NULL)
         {
-            gasket_server_set_target_extents(terminal->pvt->gasket,
-                                          screen->cursor_current.col,
+            gasket_server_set_target_extents(GASKET_SERVER(terminal->pvt->gasket),
+                                          dcol,
                                           drow - delta,
-                                          terminal->row_count,
-                                          terminal->column_count,
-                                          terminal->char_width,
-                                          terminal->char_height);
+                                          vte_terminal_get_row_count(terminal),
+                                          vte_terminal_get_column_count(terminal),
+                                          vte_terminal_get_char_width(terminal),
+                                          vte_terminal_get_char_height(terminal));
             _vte_draw_paint_gasket(terminal->pvt->draw, terminal->pvt->gasket);
         }
 }
